@@ -16,6 +16,14 @@ export default {
       this.getFeedsFromDb().then((e) => { this.feeds = e })
       this.feed_url = ''
     },
+    async handle_dir_button () {
+      const handle = await window.showDirectoryPicker()
+      console.log(handle)
+      const writeable = await handle.getFileHandle('dummy.txt', { create: true }).then((a) => { return a.createWritable() })
+      console.log(writeable)
+      await writeable.write(JSON.stringify(this.feeds))
+      writeable.close()
+    },
     async getDb () {
       return new Promise((resolve, reject) => {
         const request = window.indexedDB.open('feed_db', 1)
@@ -64,13 +72,12 @@ export default {
     async addFeedsToDb (feedobj) {
       return new Promise((resolve) => {
         const trans = this.db.transaction('feeds', 'readwrite')
-        const transId = this.db.transaction('lastID', 'readwrite')
-
-        transId.oncomplete = () => {
-          resolve()
-        }
 
         trans.oncomplete = () => {
+          const transId = this.db.transaction('lastID', 'readwrite')
+
+          transId.oncomplete = () => { resolve() }
+
           const store = transId.objectStore('lastID')
           const req = store.put(this.lastId, 0)
           req.onerror = (e) => {
@@ -118,11 +125,15 @@ export default {
     this.lastId = await this.getLastID()
     this.feeds = await this.getFeedsFromDb()
     this.ready = true
+    const navigator = window.navigator
+    const estimate = await navigator.storage.estimate()
+    console.log(estimate)
   }
 }
 </script>
 
 <template>
+  <button @click="handle_dir_button">Open a directory</button>
   <form @submit.prevent="handle_submit">
     <input type="text" v-model="feed_url">
     <button> Add Feed </button>
